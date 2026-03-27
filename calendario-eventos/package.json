@@ -1,9 +1,0 @@
-{
-  "name": "mcom-gestao",
-  "version": "1.0.0",
-  "description": "Dashboard MCOM",
-  "main": "index.html",
-  "dependencies": {
-    "node-fetch": "^2.6.7"
-  }
-}
