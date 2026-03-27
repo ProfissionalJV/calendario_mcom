@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1366">
+    <title>MCOM | Dashboard de Eventos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="orientacao-aviso">
+        <div class="aviso-content">
+            <i class="fas fa-sync-alt fa-spin"></i>
+            <h3>Gire seu celular</h3>
+            <p>Para uma melhor experiência no Dashboard, utilize o modo paisagem (deitado).</p>
+        </div>
+    </div>
+
+    <div class="menu-mobile-toggle" onclick="toggleMenu()" style="display:none; position: fixed; top: 15px; left: 15px; z-index: 1000; color: #00ff88; font-size: 25px;">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-shield-halved"></i> <span>MCOM GESTÃO</span>
+        </div>
+        
+        
+        <div class="sidebar-scroll">
+            <div class="menu-group">Eventos & BI</div>
+            <ul class="nav-links">
+                <li onclick="renderView('dashboard')"><i class="fas fa-chart-pie"></i> Dashboard</li>
+                <li onclick="renderView('novoEvento')"><i class="fas fa-plus-circle"></i> Novo Evento</li>
+                <li onclick="renderView('baseDados')"><i class="fas fa-database"></i> Base de Dados</li>
+                <li onclick="renderView('listagemGeral')"><i class="fas fa-list-ul"></i> Eventos Cadastrados</li>
+                <li onclick="renderView('checklist')"><i class="fas fa-tasks"></i> Checklist do Evento</li>
+            </ul>
+
+            <div class="menu-group">Logística & Voos</div>
+            <ul class="nav-links">
+                <li onclick="renderView('voos')"><i class="fas fa-search"></i> Pesquisa de Voos</li>
+                <li onclick="renderView('logistica')"><i class="fas fa-plane-departure"></i> Gestão de Localizadores</li>
+                <li onclick="renderView('fipe')"><i class="fas fa-truck-ramp-box"></i> Estrutura FIPE</li>
+            </ul>
+
+            <div class="menu-group">Equipe & Locais</div>
+            <ul class="nav-links">
+                <li onclick="renderView('crc_lista')"><i class="fas fa-landmark"></i> Índice de CRCs</li>
+                <li onclick="renderView('participantes')"><i class="fas fa-users-gear"></i> Gestão de Equipe</li>
+            </ul>
+
+            <div class="menu-group">Arquivos & Relatórios</div>
+            <ul class="nav-links">
+                <li onclick="renderView('midia')"><i class="fas fa-camera"></i> Fotos e Vídeos</li>
+                <li onclick="renderView('artes')"><i class="fas fa-palette"></i> Pack de Artes</li>
+                <li onclick="renderView('relatorios')"><i class="fas fa-file-pdf"></i> Gerar Relatório (PDF)</li>
+            </ul>
+
+            <div class="menu-group">IA</div>
+            <ul class="nav-links">
+                <li onclick="renderView('comandoOz')"><i class="fas fa-robot"></i> Comando OZ</li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div id="app"></div> 
+
+        <footer class="footer-assinatura">
+            <img src="./assets/cpi.png" alt="CPI">
+            <img src="./assets/mcom.png" alt="MCom">
+            <img src="./assets/gov.png" alt="Governo Federal">
+        </footer>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="js/crcs.js"></script>
+    <script src="js/dashboard.js"></script> 
+    <script src="js/eventos.js"></script>
+    <script src="js/eventosCadastrados.js"></script> 
+    <script src="js/voos.js"></script>
+    <script src="js/equipe.js"></script>
+    <script src="js/baseDados.js"></script> 
+    <script src="js/fipe.js"></script>
+    <script src="js/relatorios.js"></script>
+    <script src="js/artes.js"></script>
+    <script src="js/comandoOz.js"></script>
+    <script src="js/midia.js"></script>
+    <script src="js/logistica.js"></script>
+    <script src="js/checklist.js"></script>
+
+    <script src="js/main.js"></script> 
+</body>
+</html>
