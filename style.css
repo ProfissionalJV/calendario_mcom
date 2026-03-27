@@ -1,0 +1,336 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+
+:root {
+    --primary: #00ff88;
+    --accent: #00f2ff; /* Ciano estilo Holograma */
+    --bg: #010d0a;
+    --glass: rgba(0, 20, 15, 0.4); /* Vidro mais escuro e esverdeado */
+    --glass-border: rgba(0, 255, 136, 0.2);
+    --text: #e0f2f1;
+    --glow: 0 0 15px rgba(33, 214, 130, 0.4);
+}
+
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+}
+
+body {
+    background: radial-gradient(circle at top right, #048d5f, #02241b);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+}
+
+/* --- SIDEBAR --- */
+.sidebar {
+    width: 280px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid var(--glass-border);
+    height: 100vh;
+    position: fixed;
+    padding: 25px;
+    z-index: 1000;
+    /* Libera o scroll interno no celular */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.logo {
+    font-family: 'Orbitron', sans-serif; /* Fonte futurista */
+    letter-spacing: 2px;
+    text-shadow: var(--glow);
+}
+
+.nav-links li {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    text-transform: uppercase;
+    border-left: 2px solid transparent;
+}
+
+.nav-links li:hover {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--primary);
+    border-left: 2px solid var(--primary);
+    box-shadow: inset 10px 0 20px rgba(0, 255, 136, 0.05);
+}
+
+.menu-group {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin: 20px 0 10px;
+    letter-spacing: 1px;
+    opacity: 0.7;
+}
+
+.nav-links { list-style: none; }
+.nav-links li {
+    padding: 12px;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nav-links li:hover { background: var(--glass); color: var(--primary); }
+
+/* --- CONTEÚDO PRINCIPAL --- */
+.main-content {
+    margin-left: 280px;
+    padding: 40px;
+    width: 100%;
+    transition: 0.3s;
+}
+
+.glass-card {
+    background: var(--glass);
+    backdrop-filter: blur(15px) saturate(150%); /* Saturation dá vida ao vidro */
+    -webkit-backdrop-filter: blur(15px) saturate(150%);
+    border: 1px solid var(--glass-border);
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.7), 
+                inset 0 0 20px rgba(8, 248, 136, 0.05); /* Reflexo interno */
+    position: relative;
+    overflow: hidden;
+}
+
+/* Detalhe de "scanner" no topo do card */
+.glass-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    animation: scan 3s linear infinite;
+}
+
+@keyframes scan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+/* --- FORMULÁRIOS --- */
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    background: rgba(0, 0, 0, 0.3); 
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: white;
+    outline: none;
+    font-size: 16px !important; /* Impede zoom no Safari */
+}
+
+select option {
+    background-color: #010d0a;
+    color: white;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--primary);
+    background: rgba(0, 0, 0, 0.5);
+}
+
+button {
+    background: var(--primary);
+    color: #01261c;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: 0.3s;
+}
+
+button:hover {
+    filter: brightness(1.2);
+    transform: translateY(-2px);
+}
+
+/* --- TABELAS --- */
+.tabela-gestao {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tabela-gestao th {
+    text-align: left;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--primary);
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+.tabela-gestao td {
+    padding: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 14px;
+}
+
+/* --- DASHBOARD ESPECÍFICO --- */
+.form-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.chart-wrapper {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+
+.card-evento-dash {
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-between; 
+    min-height: 200px;
+}
+
+
+.modal-logistica {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8); z-index: 1000; display: flex;
+    justify-content: center; align-items: center; padding: 10px;
+}
+.modal-content {
+    width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+}
+
+/* --- AVISO DE ORIENTAÇÃO (MODO PAISAGEM) --- */
+#orientacao-aviso {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #010d0a;
+    z-index: 9999;
+    color: white;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    padding: 20px;
+}
+
+#orientacao-aviso i {
+    font-size: 50px;
+    color: var(--primary);
+    margin-bottom: 20px;
+    animation: rotate 2s linear infinite;
+}
+
+
+.footer-assinatura {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 60px;
+    padding: 15px 30px; 
+    margin-top: auto;
+    background: var(--glass);
+    backdrop-filter: blur(15px) saturate(150%);
+    -webkit-backdrop-filter: blur(15px) saturate(150%);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px 10px 0 0; 
+    box-shadow: 0 15px 35px rgba(0,0,0,0.5), 
+                inset 0 0 20px rgba(0, 255, 136, 0.05);
+}
+
+.footer-assinatura img {
+    height: 45px; /* Tamanho padrão */
+    width: auto;
+    opacity: 0.8;
+    transition: transform 0.3s, opacity 0.3s;
+}
+
+.footer-assinatura img:hover {
+    opacity: 1;
+    transform: scale(1.05); /* Efeito suave de zoom */
+}
+
+#app {
+    flex: 1;
+    padding-bottom: 100px; 
+}
+
+.main-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+
+#galeriaFotos img {
+    border: 1px solid var(--glass-border);
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+#galeriaFotos img:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+}
+
+@media (max-width: 1024px) {
+    /* 1. Força o container principal a usar a tela toda */
+    #app {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 10px !important;
+        margin: 0 !important;
+    }
+
+    /* 2. Mata todos os GRIDS e transforma em uma coluna só */
+    #app div[style*="display: grid"],
+    #app div[style*="display:grid"],
+    #app .grid-principal,
+    #app div[style*="grid-template-columns"] {
+        display: block !important; /* Muda de GRID para BLOCK (empilha tudo) */
+        width: 100% !important;
+    }
+
+    /* 3. Dá margem entre os cards agora que estão empilhados */
+    .glass-card {
+        margin-bottom: 20px !important;
+        width: 100% !important;
+    }
+
+    /* 4. Ajusta o Header */
+    .dash-header {
+        display: block !important;
+        text-align: center;
+    }
+
+    #filtroEvento {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-top: 15px;
+    }
+
+    /* 5. Ajusta os Gráficos para não sumirem */
+    canvas {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 280px !important;
+    }
+
+    #mapaBrasil {
+        height: 300px !important;
+        width: 100% !important;
+    }
+}
