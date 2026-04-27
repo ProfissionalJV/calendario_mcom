@@ -28,7 +28,7 @@ function renderView(view) {
 
 // Inicializa o App
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("Iniciando App via Netlify Bridge...");
+    console.log("Iniciando App via Cloudflare...");
     try {
         await buscarDoGithub(); 
         renderView('dashboard');
@@ -43,7 +43,6 @@ function toggleMenu() {
     if(sidebar) sidebar.classList.toggle('active');
 }
 
-// Fechar o menu automaticamente no mobile
 document.querySelectorAll('.sidebar li').forEach(item => {
     item.addEventListener('click', () => {
         if (window.innerWidth <= 1024) {
@@ -52,19 +51,18 @@ document.querySelectorAll('.sidebar li').forEach(item => {
     });
 });
 
-// --- FUNÇÕES DE COMUNICAÇÃO (VIA NETLIFY BRIDGE /API/) ---
+// --- FUNÇÕES DE COMUNICAÇÃO ---
 
-// 1. BUSCAR DADOS (PULL)
 async function buscarDoGithub() {
     try {
         const response = await fetch('/api/download?path=database.json');
-        if (!response.ok) throw new Error(`Erro Netlify: ${response.status}`);
+        if (!response.ok) throw new Error(`Erro: ${response.status}`);
 
         const data = await response.json();
         const decodificado = decodeURIComponent(escape(atob(data.content.replace(/\s/g, ''))));
         const conteudo = JSON.parse(decodificado);
 
-        console.log("✅ Sincronizado via Netlify!");
+        console.log("✅ Sincronizado via Cloudflare!");
         localStorage.setItem('mcom_eventos', JSON.stringify(conteudo));
         return conteudo;
     } catch (error) {
@@ -73,9 +71,8 @@ async function buscarDoGithub() {
     }
 }
 
-// 2. SALVAR NOVO EVENTO (PUSH) - ESTA ERA A QUE ESTAVA FALTANDO!
 async function salvarNoGithub(novoEvento) {
-    console.log("Iniciando salvamento seguro via API...");
+    console.log("Iniciando salvamento...");
     try {
         const res = await fetch('/api/download?path=database.json');
         const fileData = await res.json();
@@ -112,30 +109,26 @@ async function salvarNoGithub(novoEvento) {
     }
 }
 
-// 3. EXCLUIR EVENTO (CORRIGIDA)
 async function excluirNoGithub(idEvento) {
     try {
-        // Primeiro, buscamos o SHA e o conteúdo atual
         const res = await fetch('/api/download?path=database.json');
         const fileData = await res.json();
         
-        if (!res.ok) throw new Error("Não conseguiu buscar o SHA para excluir");
+        if (!res.ok) throw new Error("Não conseguiu buscar o SHA");
 
         const binario = atob(fileData.content.replace(/\s/g, ''));
         let conteudo = JSON.parse(decodeURIComponent(escape(binario)));
         
-        // Filtramos para remover o evento
         const novaLista = conteudo.filter(ev => ev.id != idEvento);
         const conteudoBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(novaLista, null, 2))));
 
-        // Enviamos a nova lista com o SHA que acabamos de pegar
         const response = await fetch('/api/upload', {
             method: 'POST',
             body: JSON.stringify({
                 fileName: 'database.json',
                 content: conteudoBase64,
                 message: `Excluindo evento ID: ${idEvento}`,
-                sha: fileData.sha // CRUCIAL: Sem isso o GitHub nega!
+                sha: fileData.sha
             })
         });
 
@@ -149,12 +142,11 @@ async function excluirNoGithub(idEvento) {
             return false;
         }
     } catch (error) {
-        console.error("Erro ao excluir no GitHub:", error);
+        console.error("Erro ao excluir:", error);
         return false;
     }
 }
 
-// 4. SUBIR FOTO
 async function subirFotoParaGithub(base64Data, nomeReferencia) {
     const apenasBase64 = base64Data.split(',')[1];
     const nomeArquivo = `foto_${Date.now()}.jpg`;
@@ -177,31 +169,51 @@ async function subirFotoParaGithub(base64Data, nomeReferencia) {
     }
 }
 
-// 5. ATUALIZAR BANCO COMPLETO / EDIÇÃO (CORRIGIDA)
+async function subirArquivoParaGithub(arquivo, prefixo = 'arquivo') {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64 = e.target.result.split(',')[1];
+            const nomeArquivo = `${prefixo}_${Date.now()}_${arquivo.name}`;
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        fileName: nomeArquivo,
+                        content: base64,
+                        message: `Upload ${prefixo}: ${arquivo.name}`
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) resolve(data.content.download_url);
+                else reject(data);
+            } catch (err) { reject(err); }
+        };
+        reader.readAsDataURL(arquivo);
+    });
+}
+
 async function atualizarBancoGitHubCompleto(listaNova) {
     try {
-        // 1. Pega o SHA atual
         const res = await fetch('/api/download?path=database.json');
         const fileData = await res.json();
         
-        if (!res.ok) throw new Error("Não conseguiu buscar o SHA para atualizar");
+        if (!res.ok) throw new Error("Não conseguiu buscar o SHA");
 
-        // 2. Transforma a lista nova em Base64
         const conteudoBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(listaNova, null, 2))));
 
-        // 3. Envia a atualização com o SHA
         const response = await fetch('/api/upload', {
             method: 'POST',
             body: JSON.stringify({
                 fileName: 'database.json',
                 content: conteudoBase64,
                 message: "Sincronizando atualização de dados",
-                sha: fileData.sha // CRUCIAL: Sem isso dá erro de sincronia!
+                sha: fileData.sha
             })
         });
 
         if (response.ok) {
-            console.log("✅ Banco de dados atualizado com sucesso!");
+            console.log("✅ Banco atualizado com sucesso!");
             return true;
         } else {
             const erroStatus = await response.json();
