@@ -1,5 +1,3 @@
-// --- 1. RENDERIZAÇÃO DO NOVO ÍNDICE DE CHECKLIST ---
-
 function renderChecklist() {
     const app = document.getElementById('app');
     const eventos = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
@@ -43,8 +41,6 @@ function renderChecklist() {
     `;
 }
 
-// --- 2. LÓGICA DO CHECKLIST ---
-
 const itensPadraoChecklist = [
     "Apresentação (PPT/Vídeo)",
     "Roteiro do Cerimonial",
@@ -68,15 +64,40 @@ function abrirChecklistDetalhado(eventoId) {
     modal.style.display = 'flex';
 
     const checklistSalvo = ev.checklistNovo || [];
+    const personalizados = ev.checklistPersonalizados || [];
 
-    container.innerHTML = itensPadraoChecklist.map(item => `
-        <label style="display:flex; align-items:center; gap:15px; background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px; cursor:pointer">
-            <input type="checkbox" style="width:22px; height:22px" 
-                ${checklistSalvo.includes(item) ? 'checked' : ''} 
-                onchange="toggleItemChecklist(${ev.id}, '${item}')">
-            <span style="font-size:15px">${item}</span>
-        </label>
-    `).join('');
+    container.innerHTML = `
+        <div id="checklistItensFixos">
+            ${itensPadraoChecklist.map(item => `
+                <label style="display:flex; align-items:center; gap:15px; background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px; cursor:pointer">
+                    <input type="checkbox" style="width:22px; height:22px" 
+                        ${checklistSalvo.includes(item) ? 'checked' : ''} 
+                        onchange="toggleItemChecklist(${ev.id}, '${item.replace(/'/g, "\\'")}')">
+                    <span style="font-size:15px">${item}</span>
+                </label>
+            `).join('')}
+        </div>
+        <div id="personalizadosContainer">
+            ${personalizados.map(item => `
+                <div class="personalizado-item">
+                    <label style="display:flex; align-items:center; gap:15px; background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px; cursor:pointer">
+                        <input type="checkbox" style="width:22px; height:22px" 
+                            ${checklistSalvo.includes(item) ? 'checked' : ''} 
+                            onchange="toggleItemChecklist(${ev.id}, '${item.replace(/'/g, "\\'")}')">
+                        <span>${item}</span>
+                        <button onclick="removerItemPersonalizado(${ev.id}, '${item.replace(/'/g, "\\'")}')" style="margin-left:auto; background:none; border:none; color:red; cursor:pointer;">&times;</button>
+                    </label>
+                </div>
+            `).join('')}
+        </div>
+        <div style="margin-top: 15px;">
+            <label>Novo item personalizado:</label>
+            <div style="display: flex; gap: 10px; margin-top: 8px;">
+                <input type="text" id="novoItemChecklist" placeholder="Ex: Contrato de transporte" style="flex:1; background:rgba(255,255,255,0.1); border:none; padding:8px; border-radius:5px;">
+                <button onclick="adicionarItemPersonalizado(${ev.id})" class="btn-acao" style="background:var(--primary); color:#000; padding:8px 15px;">Adicionar</button>
+            </div>
+        </div>
+    `;
 }
 
 function toggleItemChecklist(eventoId, item) {
@@ -96,10 +117,42 @@ function toggleItemChecklist(eventoId, item) {
     localStorage.setItem('mcom_eventos', JSON.stringify(eventos));
 }
 
+function adicionarItemPersonalizado(eventoId) {
+    const input = document.getElementById('novoItemChecklist');
+    const texto = input.value.trim();
+    if (!texto) return;
+    input.value = '';
+
+    let eventos = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
+    const idx = eventos.findIndex(e => e.id == eventoId);
+    if (idx === -1) return;
+    if (!eventos[idx].checklistPersonalizados) eventos[idx].checklistPersonalizados = [];
+    eventos[idx].checklistPersonalizados.push(texto);
+    localStorage.setItem('mcom_eventos', JSON.stringify(eventos));
+
+    fecharModalChecklist();
+    abrirChecklistDetalhado(eventoId);
+}
+
+function removerItemPersonalizado(eventoId, texto) {
+    let eventos = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
+    const idx = eventos.findIndex(e => e.id == eventoId);
+    if (idx !== -1 && eventos[idx].checklistPersonalizados) {
+        eventos[idx].checklistPersonalizados = eventos[idx].checklistPersonalizados.filter(i => i !== texto);
+        if (eventos[idx].checklistNovo) {
+            eventos[idx].checklistNovo = eventos[idx].checklistNovo.filter(i => i !== texto);
+        }
+        localStorage.setItem('mcom_eventos', JSON.stringify(eventos));
+        fecharModalChecklist();
+        abrirChecklistDetalhado(eventoId);
+    }
+}
+
 function calcularProgresso(ev) {
-    if (!ev.checklistNovo || ev.checklistNovo.length === 0) return 0;
-    const porc = (ev.checklistNovo.length / itensPadraoChecklist.length) * 100;
-    return Math.round(porc);
+    const totalItens = itensPadraoChecklist.length + (ev.checklistPersonalizados ? ev.checklistPersonalizados.length : 0);
+    if (totalItens === 0) return 0;
+    const marcados = ev.checklistNovo ? ev.checklistNovo.length : 0;
+    return Math.round((marcados / totalItens) * 100);
 }
 
 function fecharModalChecklist() {
