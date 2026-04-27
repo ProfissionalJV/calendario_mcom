@@ -63,7 +63,6 @@ function ouvirVoz() {
     recognition.onresult = (event) => {
         const fala = event.results[0][0].transcript.toLowerCase().replace('.', '');
         
-        // Tenta encontrar o evento pelo que foi falado
         const lista = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
         const encontrado = lista.find(e => e.nome.toLowerCase().includes(fala) || e.uf.toLowerCase() === fala);
 
@@ -87,7 +86,6 @@ function resetBtnVoz() {
     }
 }
 
-// --- GERAR RESUMO ---
 function execOZ() {
     const id = document.getElementById('ozSelect').value;
     if (!id) return alert("Selecione ou fale um evento!");
@@ -105,7 +103,7 @@ function execOZ() {
 📍 *LOCAL:* ${ev.endereco || 'A definir'}
 📅 *DATA:* ${dataBr} às ${ev.horario || 'A definir'}
 
-📝 *STATUS:* ${ev.checklist?.length || 0} itens conferidos
+📝 *STATUS:* ${ev.checklistNovo?.length || 0} itens conferidos
 🚀 *TIPO:* ${ev.tipo.toUpperCase()}
 ${ev.indicacao && ev.indicacao !== 'N/A' ? `👤 *INDICAÇÃO:* ${ev.indicacao}` : ''}
 
@@ -139,3 +137,6 @@ function copiarTextoOZ() {
         alert("Erro ao copiar. Tente selecionar o texto manualmente.");
     }
 }
+
+// Garantir que a função seja global
+window.renderComandoOz = renderComandoOz;
