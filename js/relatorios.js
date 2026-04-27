@@ -1,24 +1,56 @@
+// --- FUNÇÃO ATUALIZADA PARA SUPORTAR MÚLTIPLOS CRCs ---
 function obterDadosCRC(evento) {
-    // 1. PRIORIDADE TOTAL: Usa o ID que salvamos no evento.js
-    if (evento.crcId !== undefined && evento.crcId !== null && listaBaseCRCs[evento.crcId]) {
-        return listaBaseCRCs[evento.crcId];
+    // 1. Se o evento tem múltiplos CRCs (novo formato)
+    if (evento.crcIds && evento.crcIds.length > 0) {
+        const crcs = evento.crcIds.map(id => listaBaseCRCs[id]).filter(c => c);
+        if (crcs.length > 0) {
+            return {
+                multiplos: true,
+                lista: crcs,
+                nomes: crcs.map(c => c.nome),
+                ufs: [...new Set(crcs.map(c => c.uf))],
+                investimentoTotal: crcs.reduce((acc, c) => {
+                    let valor = parseFloat(c.investimento.replace(/[R$\s.]/g, '').replace(',', '.'));
+                    return acc + (isNaN(valor) ? 0 : valor);
+                }, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                metaDoacaoTotal: crcs.reduce((acc, c) => acc + (parseInt(c.metaDoacao) || 0), 0),
+                metaFormacaoTotal: crcs.reduce((acc, c) => acc + (parseInt(c.metaFormacao) || 0), 0),
+                primeiro: crcs[0]
+            };
+        }
     }
 
-    // 2. PLANO B: Se for um evento velho, busca por Nome + UF para não dar erro
-    const buscaManual = listaBaseCRCs.find(c => 
-        c.nome === evento.crcVinculado && 
-        c.uf === evento.uf
-    );
+    // 2. Compatibilidade com evento de CRC único (antigo)
+    if (evento.crcId !== undefined && evento.crcId !== null && listaBaseCRCs[evento.crcId]) {
+        const crc = listaBaseCRCs[evento.crcId];
+        return {
+            multiplos: false,
+            lista: [crc],
+            nomes: [crc.nome],
+            ufs: [crc.uf],
+            investimentoTotal: crc.investimento,
+            metaDoacaoTotal: parseInt(crc.metaDoacao) || 0,
+            metaFormacaoTotal: parseInt(crc.metaFormacao) || 0,
+            primeiro: crc
+        };
+    }
 
-    if (buscaManual) return buscaManual;
-
-    // 3. FALLBACK: Se não achar nada
-    return { 
-        nome: evento.crcVinculado || "CRC não identificado", 
-        investimento: "Consulte o MCom", 
-        cidade: evento.municipio || "Brasil",
-        metaDoacao: "0",
-        metaFormacao: "0"
+    // 3. Fallback
+    return {
+        multiplos: false,
+        lista: [],
+        nomes: [evento.crcVinculado || "CRC não identificado"],
+        ufs: [evento.uf],
+        investimentoTotal: "Consulte o MCom",
+        metaDoacaoTotal: 0,
+        metaFormacaoTotal: 0,
+        primeiro: { 
+            nome: evento.crcVinculado || "CRC não identificado", 
+            investimento: "Consulte o MCom", 
+            cidade: evento.municipio || "Brasil",
+            metaDoacao: "0",
+            metaFormacao: "0"
+        }
     };
 }
 
@@ -77,10 +109,9 @@ function gerarPdfRelatorio() {
     }
 
     const notas = document.getElementById('notasRelatorio').value || "";
-    const crc = obterDadosCRC(ev);
+    const crcData = obterDadosCRC(ev);
     
-    // CORREÇÃO DE LOCALIZAÇÃO: Prioridade total ao que foi digitado no cadastro
-    const cidadeFinal = ev.municipio || ev.cidade || crc.cidade;
+    const cidadeFinal = ev.municipio || ev.cidade || (crcData.primeiro?.cidade || "Brasil");
 
     const { jsPDF } = window.jspdf;
     const doc = jsPDF();
@@ -88,7 +119,7 @@ function gerarPdfRelatorio() {
     const verdeVivo = [46, 204, 113];
     const pretoTexto = [0, 0, 0];
 
-    // --- 1. CABEÇALHO ---
+    // --- CABEÇALHO ---
     doc.setFont("helvetica", "bold");
     doc.setFontSize(24);
     doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
@@ -108,9 +139,11 @@ function gerarPdfRelatorio() {
         doc.setTextColor(verdeVivo[0], verdeVivo[1], verdeVivo[2]);
         doc.text(txt, 30, y);
         y += 8;
+        // Restaura fonte normal para o texto que virá depois (opcional)
+        doc.setFont("helvetica", "normal");
     }
 
-    // --- 2. AGENDA ---
+    // --- AGENDA ---
     addTituloSecao("AGENDA");
     doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
     doc.setFontSize(10);
@@ -130,7 +163,7 @@ function gerarPdfRelatorio() {
         y += 6;
     });
 
-    // --- 3. PARTICIPANTES ---
+    // --- PARTICIPANTES ---
     y += 10;
     addTituloSecao("PARTICIPANTES");
     doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
@@ -145,30 +178,30 @@ function gerarPdfRelatorio() {
         y += 6;
     }
     
-
-    // --- 4. INFORMAÇÕES PRINCIPAIS ---
+    // --- INFORMAÇÕES PRINCIPAIS ---
     y += 10;
     addTituloSecao("INFORMAÇÕES PRINCIPAIS");
     doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
-
     doc.setFont("helvetica", "normal");
     
     let fraseDinamica = "";
     const tipo = ev.tipo || "doacao";
+    const qtdComputadores = ev.qtdComp || (ev.tipo === 'doacao' ? crcData.metaDoacaoTotal : 0);
+    const qtdFormacao = ev.qtdAlunos || crcData.metaFormacaoTotal;
+    const listaCRCsTexto = crcData.multiplos ? crcData.nomes.join(', ') : (crcData.primeiro?.nome || 'CRC não identificado');
 
-    // Mapeamento de frases
     if (tipo === "caravana" || tipo === "governo" || tipo === "carreta") {
         const nomes = { 'caravana': 'Caravana Federativa', 'governo': 'Governo na Rua', 'carreta': 'Carreta Digital' };
-        fraseDinamica = `A ${nomes[tipo]} ocorrerá no estado de ${ev.uf} (${cidadeFinal}) no âmbito da doação de ${ev.qtdComp || 0} computadores e formação de ${crc.metaFormacao || 0} alunos.`;
+        fraseDinamica = `A ${nomes[tipo]} ocorrerá no estado de ${ev.uf} (${cidadeFinal}) no âmbito da doação de ${qtdComputadores} computadores e formação de ${qtdFormacao} alunos.`;
     } 
     else if (tipo === "inauguracao") {
-        fraseDinamica = `Será realizada a inauguração do ${crc.nome}, localizado em ${cidadeFinal}/${ev.uf}, fortalecendo a rede de inclusão digital do Programa Computadores para Inclusão.`;
+        fraseDinamica = `Será realizada a inauguração do(s) CRC(s) ${listaCRCsTexto}, localizado(s) em ${cidadeFinal}/${ev.uf}, fortalecendo a rede de inclusão digital do Programa Computadores para Inclusão.`;
     }
     else if (tipo === "formacao") {
-        fraseDinamica = `Será realizada a cerimônia de entrega de certificados para a formação de ${ev.qtdAlunos || 0} alunos através do programa em ${cidadeFinal}/${ev.uf}.`;
+        fraseDinamica = `Será realizada a cerimônia de entrega de certificados para a formação de ${qtdFormacao} alunos através do programa em ${cidadeFinal}/${ev.uf}.`;
     }
     else {
-        fraseDinamica = `Será realizada a doação de ${ev.qtdComp || 0} computadores recondicionados através do programa em ${cidadeFinal}/${ev.uf}.`;
+        fraseDinamica = `Será realizada a doação de ${qtdComputadores} computadores recondicionados através do programa em ${cidadeFinal}/${ev.uf}.`;
     }
 
     if(notas) fraseDinamica += ` ${notas}`;
@@ -177,15 +210,32 @@ function gerarPdfRelatorio() {
     doc.text(splitInfo, 40, y);
     y += (splitInfo.length * 6) + 12;
 
-    // --- 5. HISTÓRICO CRC ---
-    addTituloSecao("HISTÓRICO DO PARCEIRO (CRC)");
+    // --- HISTÓRICO DO PARCEIRO (com fonte normal garantida) ---
+    addTituloSecao("HISTÓRICO DO(S) PARCEIRO(S) (CRC)");
     doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
-    const textoCrc = `O Centro de Recondicionamento de Computadores ${crc.nome} integra o Programa Computadores para Inclusão. Com investimento total de ${crc.investimento}, as metas incluem a doação de ${crc.metaDoacao} computadores e ${crc.metaFormacao} certificados de formação.`;
-   
-    doc.setFont("helvetica", "normal");
-
-    const splitCrc = doc.splitTextToSize(`• ${textoCrc}`, 140);
-    doc.text(splitCrc, 40, y);
+    
+    if (crcData.multiplos && crcData.lista.length > 1) {
+        const metasDoacaoTotal = crcData.metaDoacaoTotal;
+        const metasFormacaoTotal = crcData.metaFormacaoTotal;
+        const investTotal = crcData.investimentoTotal;
+        const nomesCRC = crcData.nomes.join(', ');
+        const ufsCRC = crcData.ufs.join(', ');
+        let textoMulti = `Os Centros de Recondicionamento de Computadores (${nomesCRC}) integram o Programa Computadores para Inclusão. Juntos, somam um investimento total de ${investTotal}, com metas consolidadas de doação de ${metasDoacaoTotal} computadores e ${metasFormacaoTotal} certificados de formação. Atuam nos estados: ${ufsCRC}.`;
+        
+        doc.setFont("helvetica", "normal");
+        const splitMulti = doc.splitTextToSize(`• ${textoMulti}`, 140);
+        doc.text(splitMulti, 40, y);
+        y += (splitMulti.length * 6) + 5;
+    } else {
+        const crcUnico = crcData.primeiro;
+        const textoUnico = `O Centro de Recondicionamento de Computadores ${crcUnico.nome} integra o Programa Computadores para Inclusão. Com investimento total de ${crcUnico.investimento}, as metas incluem a doação de ${crcUnico.metaDoacao} computadores e ${crcUnico.metaFormacao} certificados de formação.`;
+        
+        // Força fonte normal antes de escrever
+        doc.setFont("helvetica", "normal");
+        const splitUnico = doc.splitTextToSize(`• ${textoUnico}`, 140);
+        doc.text(splitUnico, 40, y);
+        y += (splitUnico.length * 6) + 5;
+    }
 
     // --- RODAPÉ ---
     doc.setDrawColor(verdeVivo[0], verdeVivo[1], verdeVivo[2]);
