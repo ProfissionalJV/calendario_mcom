@@ -1,6 +1,7 @@
 // --- 1. FUNÇÕES DE APOIO ---
 
 function preencherDadosCrc(valor) {
+    // Mantido para compatibilidade, mas não usado nos cards. Pode ser removido se não for chamado.
     const manual = document.getElementById('nomeCrcManual');
     const campoUf = document.getElementById('uf');
     const campoNome = document.getElementById('nome');
@@ -8,11 +9,10 @@ function preencherDadosCrc(valor) {
     if (valor === 'outro') {
         manual.style.display = 'block';
         campoUf.value = '';
-    } else {
+    } else if (valor && valor !== 'outro') {
         manual.style.display = 'none';
         const index = parseInt(valor);
         const crcSelecionado = listaBaseCRCs[index];
-        
         if (crcSelecionado) {
             campoUf.value = crcSelecionado.uf;
             if (!campoNome.value) campoNome.value = `Ação no ${crcSelecionado.nome}`;
@@ -72,7 +72,96 @@ function toggleCamposDinamicos(tipo) {
     }
 }
 
-// --- 2. RENDERIZAÇÃO ---
+// --- VARIÁVEL GLOBAL PARA SELEÇÃO DE CRCS ---
+let crcsSelecionadosIds = new Set();
+
+// --- FUNÇÕES PARA OS CARDS DE CRC ---
+
+function atualizarCrcSelecionadosUI(evId) {
+    const cards = document.querySelectorAll('.crc-card');
+    const tagsContainer = document.getElementById('crcTagsSelecionados');
+    if (!tagsContainer) return;
+    tagsContainer.innerHTML = '';
+    
+    // Atualiza estilo dos cards
+    cards.forEach(card => {
+        const idx = parseInt(card.dataset.idx);
+        if (crcsSelecionadosIds.has(idx)) {
+            card.style.background = 'rgba(46, 204, 113, 0.2)';
+            card.style.borderColor = '#2ecc71';
+        } else {
+            card.style.background = 'rgba(255,255,255,0.05)';
+            card.style.borderColor = 'rgba(255,255,255,0.1)';
+        }
+    });
+    
+    // Cria tags para os selecionados
+    for (let idx of crcsSelecionadosIds) {
+        const crc = listaBaseCRCs[idx];
+        const tag = document.createElement('span');
+        tag.style.background = '#2ecc71';
+        tag.style.color = '#000';
+        tag.style.padding = '4px 12px';
+        tag.style.borderRadius = '20px';
+        tag.style.fontSize = '12px';
+        tag.style.display = 'inline-flex';
+        tag.style.alignItems = 'center';
+        tag.style.gap = '8px';
+        tag.innerHTML = `${crc.nome} (${crc.cidade}) <span style="cursor:pointer; font-weight:bold;" data-idx="${idx}">&times;</span>`;
+        tag.querySelector('span').addEventListener('click', (e) => {
+            e.stopPropagation();
+            crcsSelecionadosIds.delete(idx);
+            atualizarCrcSelecionadosUI();
+        });
+        tagsContainer.appendChild(tag);
+    }
+}
+
+function filtrarCrcCards() {
+    const busca = document.getElementById('buscaCrcChecklist');
+    if (!busca) return;
+    const termo = busca.value.toLowerCase();
+    const cards = document.querySelectorAll('.crc-card');
+    cards.forEach(card => {
+        const nome = card.dataset.nome.toLowerCase();
+        const uf = card.dataset.uf.toLowerCase();
+        const cidade = card.dataset.cidade.toLowerCase();
+        const convenio = card.dataset.convenio.toLowerCase();
+        const match = nome.includes(termo) || uf.includes(termo) || cidade.includes(termo) || convenio.includes(termo);
+        card.style.display = match ? 'flex' : 'none';
+    });
+}
+
+function initCrcSelecao(idsSelecionados = []) {
+    crcsSelecionadosIds.clear();
+    idsSelecionados.forEach(id => crcsSelecionadosIds.add(id));
+    
+    // Adicionar eventos aos cards
+    document.querySelectorAll('.crc-card').forEach(card => {
+        card.removeEventListener('click', card.clickHandler);
+        const handler = () => {
+            const idx = parseInt(card.dataset.idx);
+            if (crcsSelecionadosIds.has(idx)) {
+                crcsSelecionadosIds.delete(idx);
+            } else {
+                crcsSelecionadosIds.add(idx);
+            }
+            atualizarCrcSelecionadosUI();
+        };
+        card.addEventListener('click', handler);
+        card.clickHandler = handler;
+    });
+    
+    const buscaInput = document.getElementById('buscaCrcChecklist');
+    if (buscaInput) {
+        buscaInput.removeEventListener('input', filtrarCrcCards);
+        buscaInput.addEventListener('input', filtrarCrcCards);
+    }
+    
+    atualizarCrcSelecionadosUI();
+}
+
+// --- 2. RENDERIZAÇÃO DO FORMULÁRIO ---
 
 function renderEventoForm() {
     const app = document.getElementById('app');
@@ -92,17 +181,34 @@ function renderEventoForm() {
         
         <div class="form-grid">
             <div style="grid-column: span 2">
-                <label><i class="fas fa-landmark"></i> CRC Responsável</label>
-                <select id="nomeCrc" onchange="preencherDadosCrc(this.value)" style="width:100%">
-                    <option value="">Selecione o CRC...</option>
-                    ${listaBaseCRCs.map((c, index) => {
-                        const label = `${c.nome} (${c.cidade}/${c.uf}) | Meta: ${c.metaDoacao}`;
-                        const selected = (ev && ev.crcId == index) ? 'selected' : '';
-                        return `<option value="${index}" ${selected}>${label}</option>`;
-                    }).join('')}
-                    <option value="outro">-- Outro / Manual --</option>
-                </select>
-                <input type="text" id="nomeCrcManual" placeholder="Nome do Local/Entidade" style="display:none; width:100%; margin-top:10px">
+                <label><i class="fas fa-landmark"></i> CRC(s) Responsável(is)</label>
+                
+                <!-- Tags dos CRCs selecionados -->
+                <div id="crcTagsSelecionados" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; min-height: 40px;"></div>
+                
+                <!-- Campo de busca -->
+                <input type="text" id="buscaCrcChecklist" placeholder="🔍 Buscar CRC (sigla, UF, cidade, convênio)..." style="width:100%; margin-bottom: 12px; padding: 8px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--primary); color: white;">
+                
+                <!-- Cards de CRCs -->
+                <div id="crcCardsLista" style="display: flex; flex-wrap: wrap; gap: 10px; max-height: 300px; overflow-y: auto; padding: 8px; background: rgba(0,0,0,0.15); border-radius: 12px;">
+                    ${listaBaseCRCs.map((c, index) => `
+                        <div class="crc-card" data-idx="${index}" data-nome="${c.nome}" data-uf="${c.uf}" data-cidade="${c.cidade}" data-convenio="${c.convenio}" style="
+                            flex: 1 1 calc(33% - 10px); 
+                            min-width: 150px;
+                            background: ${ev && ev.crcIds && ev.crcIds.includes(index) ? 'rgba(46, 204, 113, 0.2)' : 'rgba(255,255,255,0.05)'};
+                            border: 1px solid ${ev && ev.crcIds && ev.crcIds.includes(index) ? '#2ecc71' : 'rgba(255,255,255,0.1)'};
+                            border-radius: 12px;
+                            padding: 10px;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">
+                            <div style="font-weight: bold; font-size: 14px;">${c.nome}</div>
+                            <div style="font-size: 11px; opacity:0.7;">${c.cidade}/${c.uf} | ${c.convenio}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <input type="text" id="outrosCrcs" placeholder="Outros CRCs (separados por vírgula)" style="margin-top: 12px; width: 100%;" value="${ev && ev.outrosCrcs ? ev.outrosCrcs.join(', ') : ''}">
             </div>
             <div>
                 <label>Nome do Evento</label>
@@ -189,6 +295,12 @@ function renderEventoForm() {
             <textarea id="detalhamento" rows="4" style="width:100%">${ev ? (ev.detalhamento || '') : ''}</textarea>
         </div>
 
+        <div style="margin-top:20px">
+            <label><i class="fas fa-file-excel"></i> Planilha de Acompanhamento (Excel)</label>
+            <input type="file" id="planilhaEvento" accept=".xlsx, .xls">
+            ${ev && ev.planilhaUrl ? `<p><a href="${ev.planilhaUrl}" target="_blank">Planilha atual</a> <button type="button" onclick="removerPlanilha()" style="background:none; border:1px solid red; padding:2px 8px;">Remover</button></p>` : ''}
+        </div>
+
         <div style="display:flex; gap:15px; margin-top:30px">
             <button onclick="salvarEvento()" style="flex:2; background: var(--primary); color: #000; font-weight: bold; height: 55px;">
                 <i class="fas fa-save"></i> ${ev ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR EVENTO'}
@@ -199,9 +311,32 @@ function renderEventoForm() {
 
     if(ev) {
         document.getElementById('tipo').value = ['doacao', 'formacao', 'inauguracao', 'carreta', 'caravana', 'governo'].includes(ev.tipo) ? ev.tipo : 'outro';
+        if(ev.tipo === 'outro') document.getElementById('tipoManual').value = ev.tipo;
     }
     tratarMudancaTipo(document.getElementById('tipo').value);
+    
+    // Inicializar seleção de CRCs
+    if (ev && ev.crcIds) {
+        initCrcSelecao(ev.crcIds);
+        document.getElementById('outrosCrcs').value = ev.outrosCrcs ? ev.outrosCrcs.join(', ') : '';
+    } else {
+        initCrcSelecao([]);
+    }
 }
+
+// Função auxiliar para remover planilha
+window.removerPlanilha = function() {
+    const editId = sessionStorage.getItem('editando_evento_id');
+    if (!editId) return;
+    let listaAtual = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
+    const index = listaAtual.findIndex(ev => ev.id == editId);
+    if (index !== -1) {
+        delete listaAtual[index].planilhaUrl;
+        localStorage.setItem('mcom_eventos', JSON.stringify(listaAtual));
+        atualizarBancoGitHubCompleto(listaAtual);
+        renderEventoForm(); // recarrega
+    }
+};
 
 // --- 3. PERSISTÊNCIA ---
 
@@ -209,23 +344,17 @@ async function salvarEvento() {
     const nome = document.getElementById('nome').value;
     const dtInicio = document.getElementById('dtInicio').value;
     const tipoBase = document.getElementById('tipo').value;
-    const crcSelect = document.getElementById('nomeCrc').value;
 
     if(!nome || !dtInicio) return alert("Por favor, preencha o Nome e a Data!");
 
     const editId = sessionStorage.getItem('editando_evento_id');
     let listaAtual = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
 
-    let crcNomeFinal = "";
-    let crcIdFinal = null;
-
-    if (crcSelect === 'outro') {
-        crcNomeFinal = document.getElementById('nomeCrcManual').value;
-    } else if (crcSelect !== "") {
-        const index = parseInt(crcSelect);
-        crcIdFinal = index;
-        crcNomeFinal = listaBaseCRCs[index].nome;
-    }
+    // Coletar CRCs selecionados via Set global
+    const crcIds = Array.from(crcsSelecionadosIds);
+    const crcNomes = crcIds.map(idx => listaBaseCRCs[idx].nome);
+    const outrosCrcs = document.getElementById('outrosCrcs').value.split(',').map(s => s.trim()).filter(s => s);
+    const todosCrcs = [...crcNomes, ...outrosCrcs];
 
     const obj = {
         id: editId ? Number(editId) : Date.now(),
@@ -233,8 +362,9 @@ async function salvarEvento() {
         municipio: document.getElementById('municipio').value,
         uf: document.getElementById('uf').value.toUpperCase(),
         tipo: tipoBase === 'outro' ? document.getElementById('tipoManual').value : tipoBase,
-        crcVinculado: crcNomeFinal,
-        crcId: crcIdFinal,
+        crcIds: crcIds,
+        crcsVinculados: todosCrcs,
+        outrosCrcs: outrosCrcs,
         dataInicio: dtInicio,
         dataEvento: dtInicio, 
         dataFim: document.getElementById('dtFim').value,
@@ -253,16 +383,33 @@ async function salvarEvento() {
         equipe: editId ? (listaAtual.find(e => e.id == editId)?.equipe || []) : []
     };
 
-    console.log("🚀 Disparando sincronia com GitHub...");
-    
-    // Chama a função do main.js
-    await salvarNoGithub(obj); 
+    // Upload da planilha
+    const arquivoPlanilha = document.getElementById('planilhaEvento').files[0];
+    if (arquivoPlanilha) {
+        const url = await subirArquivoParaGithub(arquivoPlanilha, `planilha_${obj.id}`);
+        if (url) obj.planilhaUrl = url;
+    } else if (editId) {
+        const evOld = listaAtual.find(e => e.id == editId);
+        if (evOld && evOld.planilhaUrl) obj.planilhaUrl = evOld.planilhaUrl;
+    }
 
     if (editId) {
-        sessionStorage.removeItem('editando_evento_id'); 
+        const index = listaAtual.findIndex(ev => ev.id == editId);
+        if (index !== -1) {
+            listaAtual[index] = obj;
+            await atualizarBancoGitHubCompleto(listaAtual);
+            localStorage.setItem('mcom_eventos', JSON.stringify(listaAtual));
+            alert("Evento atualizado com sucesso!");
+            renderView('dashboard');
+            sessionStorage.removeItem('editando_evento_id');
+        }
+    } else {
+        listaAtual.push(obj);
+        await atualizarBancoGitHubCompleto(listaAtual);
+        localStorage.setItem('mcom_eventos', JSON.stringify(listaAtual));
+        alert("Evento salvo com sucesso!");
+        renderView('dashboard');
     }
-    
-    renderView('dashboard');
 }
 
 function cancelarEdicao() {
