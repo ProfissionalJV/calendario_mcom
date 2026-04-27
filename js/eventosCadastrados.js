@@ -1,19 +1,15 @@
-// --- FUNÇÃO PRINCIPAL: RENDERIZA A TELA DE LISTAGEM AGRUPADA POR MÊS ---
 function renderListagemGeral() {
     const app = document.getElementById('app');
     const eventosRaw = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
 
-    // 1. Ordenar eventos por data (Recentes primeiro)
     const eventosOrdenados = eventosRaw.sort((a, b) => new Date(b.dataEvento) - new Date(a.dataEvento));
 
-    // 2. Agrupar por Mês/Ano
     const grupos = {};
     eventosOrdenados.forEach(e => {
         const data = e.dataEvento ? new Date(e.dataEvento + 'T00:00:00') : null;
         const mesAno = data 
             ? data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
             : "DATA NÃO DEFINIDA";
-        
         if (!grupos[mesAno]) grupos[mesAno] = [];
         grupos[mesAno].push(e);
     });
@@ -53,6 +49,7 @@ function renderListagemGeral() {
                                         <th>CRC Responsável</th>
                                         <th>Prontidão</th>
                                         <th style="text-align:center"><i class="fas fa-images"></i> Mídia</th>
+                                        <th style="text-align:center"><i class="fas fa-file-excel"></i> Planilha</th>
                                         <th style="text-align:center">Ações</th>
                                     </tr>
                                 </thead>
@@ -65,6 +62,7 @@ function renderListagemGeral() {
                                         if (e.logisticaVoos?.length > 0) progresso += 25;
 
                                         const temFotos = e.galeria && e.galeria.length > 0;
+                                        const crcTexto = (e.crcsVinculados && e.crcsVinculados.length) ? e.crcsVinculados.join(', ') : (e.crcVinculado || '---');
 
                                         return `
                                         <tr class="linha-evento">
@@ -74,14 +72,13 @@ function renderListagemGeral() {
                                             </td>
                                             <td>${e.uf}</td>
                                             <td>${e.dataEvento ? e.dataEvento.split('-').reverse().join('/') : '---'}</td>
-                                            <td>${e.crcVinculado || '---'}</td>
+                                            <td>${crcTexto}</td>
                                             <td>
                                                 <div style="width:100px; height:6px; background:rgba(255,255,255,0.1); border-radius:4px; margin-bottom:4px">
                                                     <div style="width:${progresso}%; height:100%; background:${progresso === 100 ? '#00ff88' : '#00ff9d'}; border-radius:4px"></div>
                                                 </div>
                                                 <small style="font-size:10px; opacity:0.8">${progresso}% pronto</small>
                                             </td>
-                                            
                                             <td style="text-align:center">
                                                 ${temFotos ? `
                                                     <button onclick="baixarFotosEvento(${e.id})" class="btn-acao edit" title="Baixar todas as fotos" style="background:rgba(0, 255, 136, 0.15); border:1px solid var(--primary); padding: 5px 10px;">
@@ -89,7 +86,9 @@ function renderListagemGeral() {
                                                     </button>
                                                 ` : `<small style="opacity:0.2">---</small>`}
                                             </td>
-
+                                            <td style="text-align:center">
+                                                ${e.planilhaUrl ? `<a href="${e.planilhaUrl}" target="_blank" class="btn-acao" style="background:rgba(0, 255, 136, 0.15); padding:5px 10px; border-radius:5px;"><i class="fas fa-download"></i></a>` : '<small>---</small>'}
+                                            </td>
                                             <td style="text-align:center">
                                                 <button onclick="editarEvento(${e.id})" class="btn-acao edit">
                                                     <i class="fas fa-edit"></i>
@@ -118,22 +117,19 @@ async function baixarFotosEvento(idEvento) {
         return alert("Nenhuma foto encontrada.");
     }
 
-    alert(`Iniciando download seguro via Netlify...`);
+    alert(`Iniciando download...`);
 
     for (let i = 0; i < evento.galeria.length; i++) {
         try {
-            // Extraímos apenas o caminho 'uploads/nome_da_foto.jpg' da URL salva
             const urlSalva = evento.galeria[i].split('?')[0]; 
             const caminhoArquivo = urlSalva.split('/contents/')[1] || urlSalva.split('/main/')[1];
 
-            // Chamamos a nossa função serverless no Netlify
-            const response = await fetch(`/.netlify/functions/download?path=${caminhoArquivo}`);
+            const response = await fetch(`/api/download?path=${encodeURIComponent(caminhoArquivo)}`);
 
             if (!response.ok) throw new Error("Falha na ponte de download");
 
             const data = await response.json();
             
-            // O conteúdo vem em Base64 do servidor
             const blob = await (await fetch(`data:image/jpeg;base64,${data.content}`)).blob();
             const blobUrl = window.URL.createObjectURL(blob);
 
@@ -149,13 +145,12 @@ async function baixarFotosEvento(idEvento) {
             await new Promise(r => setTimeout(r, 600));
 
         } catch (error) {
-            console.error("Erro no download seguro:", error);
+            console.error("Erro no download:", error);
             alert(`Erro ao baixar foto ${i + 1}.`);
         }
     }
 }
 
-// --- FILTRO DE BUSCA ---
 function filtrarTabelaEventos() {
     const termo = document.getElementById('buscaEvento').value.toLowerCase();
     const linhas = document.querySelectorAll('.linha-evento');
@@ -172,13 +167,11 @@ function filtrarTabelaEventos() {
     });
 }
 
-// --- FUNÇÃO PARA EDITAR EVENTO ---
 function editarEvento(id) {
     sessionStorage.setItem('editando_evento_id', id);
     renderView('novoEvento');
 }
 
-// --- EXCLUIR EVENTO ---
 async function excluirEventoLista(id) {
     if(confirm("Deseja remover este evento permanentemente da nuvem?")) {
         const sucesso = await excluirNoGithub(id);
