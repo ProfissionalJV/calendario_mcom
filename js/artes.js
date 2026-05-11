@@ -1,7 +1,30 @@
 function renderArtes() {
     const app = document.getElementById('app');
+    const eventos = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
+
     app.innerHTML = `
-    <div class="glass-card">
+    <div class="glass-card" id="artesContainer">
+        <style>
+            #artesContainer .checkbox-group {
+                display: flex;
+                flex-direction: column;
+            }
+            #artesContainer .checkbox-item {
+                display: flex !important;
+                align-items: center !important;
+                gap: 15px !important;
+                /* removemos a margin-bottom daqui para não conflitar */
+                padding: 0 !important;
+                line-height: normal !important;
+            }
+            #artesContainer .checkbox-item input[type="checkbox"] {
+                margin: 0 !important;
+                width: 18px;
+                height: 18px;
+                flex-shrink: 0;
+            }
+        </style>
+
         <h2><i class="fas fa-palette"></i> Controle de Produção de Artes</h2>
         <p style="margin-bottom:20px; opacity:0.8">Selecione o evento para definir o Pack de Artes:</p>
         
@@ -12,31 +35,48 @@ function renderArtes() {
 
         <div class="form-grid">
             <div class="glass-card" style="background:rgba(255,255,255,0.03)">
-                <h4 style="color:var(--primary)"><i class="fas fa-check-double"></i> Itens Necessários</h4>
-                <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px">
-                    <label><input type="checkbox" class="art-item" value="Placa de Inauguração"> 🖼️ Placa de Inauguração</label>
-                    <label><input type="checkbox" class="art-item" value="Convite Digital"> 📱 Convite Digital (WhatsApp)</label>
-                    <label><input type="checkbox" class="art-item" value="Cheque Simbólico"> 💰 Cheque Simbólico</label>
-                    <label><input type="checkbox" class="art-item" value="Certificado de Doação"> 📜 Certificado de Doação</label>
-                    <label><input type="checkbox" class="art-item" value="Certificado de Formação"> 🎓 Certificado de Formação</label>
-                    <label><input type="checkbox" class="art-item" value="Banner/Backdrop"> 🏛️ Banner / Backdrop</label>
+                <h4 style="color:var(--primary); margin-bottom: 18px;"><i class="fas fa-check-double"></i> Itens Necessários</h4>
+                <div class="checkbox-group">
+                    <label class="checkbox-item" style="margin-bottom: 20px;">
+                        <input type="checkbox" class="art-item" value="Placa de Inauguração">
+                        <span>Placa de Inauguração</span>
+                    </label>
+                    <label class="checkbox-item" style="margin-bottom: 20px;">
+                        <input type="checkbox" class="art-item" value="Convite Digital">
+                        <span>Convite de Participação</span>
+                    </label>
+                    <label class="checkbox-item" style="margin-bottom: 20px;">
+                        <input type="checkbox" class="art-item" value="Cheque Simbólico">
+                        <span>Cheque Simbólico</span>
+                    </label>
+                    <label class="checkbox-item" style="margin-bottom: 20px;">
+                        <input type="checkbox" class="art-item" value="Certificado de Doação">
+                        <span>Certificado de Doação</span>
+                    </label>
+                    <label class="checkbox-item" style="margin-bottom: 20px;">
+                        <input type="checkbox" class="art-item" value="Certificado de Formação">
+                        <span>Certificado de Formação</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="art-item" value="Banner/Backdrop">
+                        <span>Banner / Backdrop</span>
+                    </label>
                 </div>
             </div>
 
             <div class="glass-card" style="background:rgba(255,255,255,0.03)">
-                <h4 style="color:var(--primary)"><i class="fas fa-paint-brush"></i> Observações para o Design</h4>
+                <h4 style="color:var(--primary); margin-bottom: 18px;"><i class="fas fa-comment"></i> Observações para o Design</h4>
                 <textarea id="artesObs" placeholder="Ex: Inserir logo da prefeitura parceira, destaque para o nome do curso..." rows="8" style="width:100%"></textarea>
             </div>
         </div>
 
         <div style="margin-top:20px;">
-            <button onclick="salvarArtes()" style="width:100%; background:var(--primary); color:#000; font-weight:bold">
+            <button onclick="salvarArtes()" style="width:100%; background:var(--primary); color:#000; font-weight:bold; padding:12px; border-radius:8px; cursor:pointer;">
                 SALVAR PACK DE ARTES
             </button>
         </div>
     </div>`;
 }
-
 function salvarArtes() {
     const idEv = document.getElementById('artesEvento').value;
     if(!idEv) return alert("Selecione um evento!");
