@@ -29,7 +29,7 @@ function renderChecklist() {
         <div id="modalChecklist" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; padding: 15px;">
             <div class="glass-card" style="width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding:20px; border: 1px solid #00ff40">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-                    <h2 style="color:#00ff40"><i class="fas fa-clipboard-list"></i> Itens de Prontidão</h2>
+                    <h2 style="color:#00ff40"><i class="fas fa-clipboard-list"></i> Itens Necessários</h2>
                     <button onclick="fecharModalChecklist()" style="background:none; border:none; color:white; font-size:30px; cursor:pointer">&times;</button>
                 </div>
                 <div id="listaItensChecklist"></div>
@@ -51,7 +51,8 @@ const itensPadraoChecklist = [
     "Computadores Testados",
     "Equipe Escalada",
     "Reserva de Hotel/Passagem",
-    "Material de Apoio (Brindes/Pastas)"
+    "Material de Apoio (Brindes/Pastas)",
+    "Preenchimento - Fipe"
 ];
 
 function abrirChecklistDetalhado(eventoId) {
