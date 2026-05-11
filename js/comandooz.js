@@ -8,6 +8,19 @@ if (recognition) {
     recognition.interimResults = false;
 }
 
+// Listas para identificar membros (mesmas usadas em equipe.js)
+const nomesMCOM = ["ASPAD", "ASCOM", "Gabinete do Ministro", "SEXEC", "ASPAR / Cerimonial"];
+const nomesEventuais = [
+    "Frederico de Siqueira (Ministro de Estado das Comunicações)",
+    "Francis Meneses (Coordenador de Projetos)",
+    "Hermano Tercius (Secretário de Telecomunicações)",
+    "Ludymilla Chagas (Chefe da Assessoria de Participação Social e Diversidade)",
+    "Munique Souza (Assessora Técnica)",
+    "Pedro Henrique Silva (Assessor Técnico)",
+    "Sônia Faustino (Secretária Executiva)",
+    "Thayana Vianna (Assessoria de imprensa)"
+];
+
 function renderComandoOz() {
     const app = document.getElementById('app');
     const listaEventos = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
@@ -42,30 +55,25 @@ function renderComandoOz() {
     </div>`;
 }
 
-// --- LÓGICA DE VOZ ---
+// --- LÓGICA DE VOZ (mantida igual) ---
 function ouvirVoz() {
     if (!recognition) {
         alert("Ops! Seu navegador não suporta reconhecimento de voz.");
         return;
     }
-
     const btn = document.getElementById('btnVoz');
     btn.style.background = "#ff4444"; 
     btn.innerHTML = `<i class="fas fa-dot-circle fa-beat"></i>`;
-    
     try {
         recognition.start();
     } catch (e) {
         recognition.stop();
         setTimeout(() => recognition.start(), 400);
     }
-
     recognition.onresult = (event) => {
         const fala = event.results[0][0].transcript.toLowerCase().replace('.', '');
-        
         const lista = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
         const encontrado = lista.find(e => e.nome.toLowerCase().includes(fala) || e.uf.toLowerCase() === fala);
-
         if (encontrado) {
             document.getElementById('ozSelect').value = encontrado.id;
             execOZ();
@@ -73,7 +81,6 @@ function ouvirVoz() {
             alert("OZ não reconheceu o evento: " + fala);
         }
     };
-
     recognition.onerror = () => resetBtnVoz();
     recognition.onend = () => resetBtnVoz();
 }
@@ -86,6 +93,7 @@ function resetBtnVoz() {
     }
 }
 
+// --- GERAÇÃO DO RESUMO (MODIFICADO) ---
 function execOZ() {
     const id = document.getElementById('ozSelect').value;
     if (!id) return alert("Selecione ou fale um evento!");
@@ -94,39 +102,84 @@ function execOZ() {
     const ev = lista.find(e => e.id == id);
     const out = document.getElementById('ozOut');
 
-    if (ev) {
-        const dataBr = ev.dataInicio ? ev.dataInicio.split('-').reverse().join('/') : 'A definir';
-        
-        const txt = `🤖 *COMANDO OZ: RESUMO OPERACIONAL*
+    if (!ev) return;
+
+    // Formata data
+    const dataBr = ev.dataInicio ? ev.dataInicio.split('-').reverse().join('/') : 'A definir';
+
+    // Quantidade de doação ou formação
+    let quantidadeTexto = "";
+    const tipo = ev.tipo || "doacao";
+    if (tipo === "doacao") {
+        const qtd = ev.qtdComp || (ev.tipo === 'doacao' ? "não informada" : "0");
+        quantidadeTexto = `${qtd} computadores`;
+    } else if (tipo === "formacao") {
+        const qtd = ev.qtdAlunos || "não informada";
+        quantidadeTexto = `${qtd} alunos formados`;
+    } else {
+        quantidadeTexto = "não se aplica";
+    }
+
+    // CRC participante (nome e convênio, se disponível)
+    let crcTexto = "";
+    if (ev.crcVinculado) {
+        crcTexto = ev.crcVinculado;
+        if (ev.convenioSelecionado) crcTexto += ` (Convênio ${ev.convenioSelecionado})`;
+    } else if (ev.crcIds && ev.crcIds.length > 0 && window.listaBaseCRCs) {
+        const idx = ev.crcIds[0];
+        const crc = window.listaBaseCRCs[idx];
+        if (crc) crcTexto = crc.nome;
+        if (ev.convenioSelecionado) crcTexto += ` (Convênio ${ev.convenioSelecionado})`;
+    } else {
+        crcTexto = "Não informado";
+    }
+
+    // Equipe (MCOM + CGID)
+    const equipeGeral = ev.equipe || [];
+    // Participantes do MCOM (apenas os títulos/funções, sem cargos longos)
+    const mcomPresentes = nomesMCOM.filter(nome => equipeGeral.includes(nome));
+    // Participantes eventuais (opcional – você pode incluir se quiser)
+    const eventuaisPresentes = nomesEventuais.filter(n => equipeGeral.includes(n));
+    // CGID: apenas o texto "CGID" independentemente de nomes
+    const temCGID = equipeGeral.some(nome => nome.includes("Karine") || nome.includes("Gustavo") || nome.includes("Daliane") || nome.includes("Victoria"));
+    
+    let equipeTexto = "";
+    if (mcomPresentes.length) equipeTexto += `MCOM: ${mcomPresentes.join(', ')}; `;
+    if (temCGID) equipeTexto += `CGID; `;
+    if (eventuaisPresentes.length) equipeTexto += `Equipe Eventual: ${eventuaisPresentes.map(n => n.split('(')[0].trim()).join(', ')}; `;
+    if (equipeTexto === "") equipeTexto = "Não informada";
+
+    // Construção do texto final com apenas três emojis (🤖, 📌, 📍)
+    const txt = `🤖 *COMANDO OZ: RESUMO OPERACIONAL*
 ---------------------------------------
 📌 *EVENTO:* ${ev.nome.toUpperCase()}
 📍 *LOCAL:* ${ev.endereco || 'A definir'}
 📅 *DATA:* ${dataBr} às ${ev.horario || 'A definir'}
 
-📝 *STATUS:* ${ev.checklistNovo?.length || 0} itens conferidos
-🚀 *TIPO:* ${ev.tipo.toUpperCase()}
-${ev.indicacao && ev.indicacao !== 'N/A' ? `👤 *INDICAÇÃO:* ${ev.indicacao}` : ''}
+*AÇÃO:* ${tipo === 'doacao' ? 'Doação' : tipo === 'formacao' ? 'Formação' : tipo.toUpperCase()}
+*QUANTIDADE:* ${quantidadeTexto}
+*CRC:* ${crcTexto}
+*EQUIPE:* ${equipeTexto}
+${ev.indicacao && ev.indicacao !== 'N/A' ? `📋 *INDICAÇÃO:* ${ev.indicacao}` : ''}
 
-🚀 *DETALHAMENTO:*
-${ev.detalhamento ? ev.detalhamento.substring(0, 250) + '...' : 'Sem briefing.'}
+*OBSERVAÇÕES:*
+${ev.detalhamento ? ev.detalhamento.substring(0, 250) + (ev.detalhamento.length > 250 ? '...' : '') : 'Sem informações adicionais.'}
 ---------------------------------------
 _Enviado via MCOM Gestão Integrada_`;
 
-        out.innerHTML = `
-            <div class="glass-card" style="background:rgba(0,0,0,0.3); border:1px solid var(--primary); padding:15px;">
-                <h4 style="color:var(--primary); margin-bottom:10px;"><i class="fas fa-comment-alt"></i> Preview:</h4>
-                <textarea id="textoCopiaOz" style="width:100%; height:150px; background:transparent; color:#eee; border:none; font-family:monospace; font-size:12px; resize:none;">${txt}</textarea>
-                <button onclick="copiarTextoOZ()" id="btnCopiar" style="width:100%; background:#25D366; color:white; margin-top:15px; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">
-                    <i class="fab fa-whatsapp"></i> COPIAR E ENVIAR
-                </button>
-            </div>`;
-    }
+    out.innerHTML = `
+        <div class="glass-card" style="background:rgba(0,0,0,0.3); border:1px solid var(--primary); padding:15px;">
+            <h4 style="color:var(--primary); margin-bottom:10px;"><i class="fas fa-comment-alt"></i> Preview:</h4>
+            <textarea id="textoCopiaOz" style="width:100%; height:200px; background:transparent; color:#eee; border:none; font-family:monospace; font-size:12px; resize:none;">${txt}</textarea>
+            <button onclick="copiarTextoOZ()" id="btnCopiar" style="width:100%; background:#25D366; color:white; margin-top:15px; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                <i class="fab fa-whatsapp"></i> COPIAR E ENVIAR
+            </button>
+        </div>`;
 }
 
 function copiarTextoOZ() {
     const area = document.getElementById('textoCopiaOz');
     area.select();
-    
     try {
         navigator.clipboard.writeText(area.value);
         const btn = document.getElementById('btnCopiar');
