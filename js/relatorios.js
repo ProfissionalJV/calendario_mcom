@@ -1,44 +1,46 @@
-// --- FUNÇÃO ATUALIZADA PARA SUPORTAR CRC COM CONVÊNIO SELECIONADO ---
+// --- FUNÇÃO PARA OBTER DADOS DO CRC/CONVÊNIO CORRETO ---
 function obterDadosCRC(evento) {
-    // 1. Se o evento tem o novo formato (crcId + convenioSelecionado)
+    // Tenta obter o convênio a partir do rawCRCs (lista original)
+    if (evento.convenioSelecionado && window.rawCRCs) {
+        const convenioEncontrado = window.rawCRCs.find(c => c.convenio === evento.convenioSelecionado);
+        if (convenioEncontrado) {
+            return {
+                nome: convenioEncontrado.nome,
+                uf: convenioEncontrado.uf,
+                cidade: convenioEncontrado.cidade,
+                investimento: convenioEncontrado.investimento,
+                metaDoacao: convenioEncontrado.metaDoacao,
+                metaFormacao: convenioEncontrado.metaFormacao,
+                convenio: convenioEncontrado.convenio
+            };
+        }
+    }
+    // Fallback: tenta pelo crcId (se existir listaBaseCRCs)
     if (evento.crcId !== undefined && evento.crcId !== null && window.listaBaseCRCs && window.listaBaseCRCs[evento.crcId]) {
         const crc = window.listaBaseCRCs[evento.crcId];
-        // Adiciona o número do convênio selecionado (se existir)
-        const convenioTexto = evento.convenioSelecionado || (crc.convenioTexto ? crc.convenioTexto : 'não informado');
         return {
-            multiplos: false,
-            lista: [crc],
-            nomes: [crc.nome],
-            ufs: [crc.uf],
-            investimentoTotal: crc.investimento,
-            metaDoacaoTotal: parseInt(crc.metaDoacao) || 0,
-            metaFormacaoTotal: parseInt(crc.metaFormacao) || 0,
-            primeiro: { ...crc, convenio: convenioTexto },
-            convenioSelecionado: convenioTexto
+            nome: crc.nome,
+            uf: crc.uf,
+            cidade: crc.cidade,
+            investimento: crc.investimento,
+            metaDoacao: crc.metaDoacao,
+            metaFormacao: crc.metaFormacao,
+            convenio: evento.convenioSelecionado || "não informado"
         };
     }
-    // 2. Fallback para eventos antigos
+    // Fallback final
     return {
-        multiplos: false,
-        lista: [],
-        nomes: [evento.crcVinculado || "CRC não identificado"],
-        ufs: [evento.uf],
-        investimentoTotal: "Consulte o MCom",
-        metaDoacaoTotal: 0,
-        metaFormacaoTotal: 0,
-        primeiro: { 
-            nome: evento.crcVinculado || "CRC não identificado", 
-            investimento: "Consulte o MCom", 
-            cidade: evento.municipio || "Brasil",
-            metaDoacao: "0",
-            metaFormacao: "0",
-            convenio: evento.convenioSelecionado || "não informado"
-        },
-        convenioSelecionado: evento.convenioSelecionado || "não informado"
+        nome: evento.crcVinculado || "CRC não identificado",
+        uf: evento.uf,
+        cidade: evento.municipio || "Brasil",
+        investimento: "Consulte o MCom",
+        metaDoacao: "0",
+        metaFormacao: "0",
+        convenio: evento.convenioSelecionado || "não informado"
     };
 }
 
-// --- LISTAS FIXAS PARA PARTICIPANTES (mesmas do equipe.js) ---
+// --- LISTAS FIXAS PARA PARTICIPANTES ---
 const equipeCGID = [
     "Daliane Madureira Serra (Chefe de Divisão de Acompanhamento Técnico de Projetos)",
     "Gustavo Andre Fernandes Lima (Coordenador-Geral de Inclusão Digital)",
@@ -46,15 +48,8 @@ const equipeCGID = [
     "Victoria de Paula Nunes (Assistente)"
 ];
 
-const equipeMCOM = [
-    "ASPAD",
-    "ASCOM",
-    "Gabinete do Ministro",
-    "SEXEC",
-    "ASPAR / Cerimonial"
-];
+const equipeMCOM = ["ASPAD", "ASCOM", "Gabinete do Ministro", "SEXEC", "ASPAR / Cerimonial"];
 
-// Lista de nomes da equipe eventual (para identificar)
 const equipeEventualNomes = [
     "Frederico de Siqueira (Ministro de Estado das Comunicações)",
     "Francis Meneses (Coordenador de Projetos)",
@@ -66,7 +61,7 @@ const equipeEventualNomes = [
     "Thayana Vianna (Assessoria de imprensa)"
 ];
 
-// --- FUNÇÃO PARA FORMATAR DATA (YYYY-MM-DD -> DD/MM/YYYY) ---
+// --- FUNÇÃO PARA FORMATAR DATA ---
 function formatarDataBr(dataStr) {
     if (!dataStr) return "A definir";
     const partes = dataStr.split('-');
@@ -74,7 +69,7 @@ function formatarDataBr(dataStr) {
     return dataStr;
 }
 
-// --- FUNÇÃO PRINCIPAL DE RENDERIZAÇÃO DA TELA ---
+// --- RENDERIZAÇÃO DA TELA (mantida igual) ---
 function renderRelatorios() {
     const app = document.getElementById('app');
     const listaEventos = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
@@ -117,227 +112,169 @@ function renderRelatorios() {
     });
 }
 
-// --- FUNÇÃO PARA GERAR O PDF (com todas as melhorias) ---
+// --- FUNÇÃO PARA GERAR PDF COM QUEBRA DE PÁGINA AUTOMÁTICA ---
 function gerarPdfRelatorio() {
     const id = document.getElementById('relatorioEvento').value;
-    if(!id) return alert("Por favor, selecione um evento!");
+    if (!id) return alert("Por favor, selecione um evento!");
 
     const lista = JSON.parse(localStorage.getItem('mcom_eventos')) || [];
     const ev = lista.find(e => e.id == id);
     if (!ev) { alert("Erro: Evento não encontrado!"); return; }
 
     const notas = document.getElementById('notasRelatorio').value || "";
-    const crcData = obterDadosCRC(ev);
-    const cidadeFinal = ev.municipio || ev.cidade || (crcData.primeiro?.cidade || "Brasil");
+    const crc = obterDadosCRC(ev);
+    const cidadeFinal = ev.municipio || crc.cidade || "Brasil";
 
     const { jsPDF } = window.jspdf;
     const doc = jsPDF();
-
     const verdeVivo = [46, 204, 113];
     const pretoTexto = [0, 0, 0];
 
-    // --- CABEÇALHO ---
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(24);
-    doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
-    doc.text("Relatório MCom", 105, 30, { align: "center" });
+    let y = 70; // posição Y atual
+    const limitePagina = 270; // altura máxima antes de quebrar página
 
-    doc.setFillColor(verdeVivo[0], verdeVivo[1], verdeVivo[2]); 
-    doc.rect(30, 42, 150, 10, 'F');
-    doc.setFontSize(11);
-    doc.setTextColor(255, 255, 255);
-    doc.text(`${ev.nome} – ${ev.uf}`.toUpperCase(), 105, 48.5, { align: "center" });
-
-    let y = 70;
+    function verificarQuebraPagina(alturaNecessaria = 0) {
+        if (y + alturaNecessaria > limitePagina) {
+            doc.addPage();
+            y = 30; // reset após quebra de página (margem superior)
+            return true;
+        }
+        return false;
+    }
 
     function addTituloSecao(txt) {
+        verificarQuebraPagina(12);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
         doc.setTextColor(verdeVivo[0], verdeVivo[1], verdeVivo[2]);
         doc.text(txt, 30, y);
         y += 8;
         doc.setFont("helvetica", "normal");
+        doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
     }
+
+    function addTextoLinha(texto, indent = 40) {
+        const linhas = doc.splitTextToSize(texto, 140);
+        verificarQuebraPagina(linhas.length * 6);
+        doc.text(linhas, indent, y);
+        y += linhas.length * 6;
+    }
+
+    // --- CABEÇALHO (primeira página) ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(24);
+    doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
+    doc.text("Relatório MCom", 105, 30, { align: "center" });
+    doc.setFillColor(verdeVivo[0], verdeVivo[1], verdeVivo[2]); 
+    doc.rect(30, 42, 150, 10, 'F');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`${ev.nome} – ${ev.uf}`.toUpperCase(), 105, 48.5, { align: "center" });
 
     // --- AGENDA ---
     addTituloSecao("AGENDA");
-    doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
-    doc.setFontSize(10);
-    
     const dataEventoFormatada = formatarDataBr(ev.dataEvento || ev.dataInicio);
-    const agendaItems = [
-        ["Data:", dataEventoFormatada],
-        ["Horário:", ev.horario || "A definir"],
-        ["Local:", `${cidadeFinal}/${ev.uf}`],
-        ["Endereço:", ev.endereco || "A confirmar"]
-    ];
-    agendaItems.forEach(it => {
-        doc.setFont("helvetica", "bold");
-        doc.text(`• ${it[0]}`, 40, y);
-        doc.setFont("helvetica", "normal");
-        doc.text(`${it[1]}`, 65, y);
-        y += 6;
-    });
+    addTextoLinha(`• Data: ${dataEventoFormatada}`);
+    addTextoLinha(`• Horário: ${ev.horario || "A definir"}`);
+    addTextoLinha(`• Local: ${cidadeFinal}/${ev.uf}`);
+    addTextoLinha(`• Endereço: ${ev.endereco || "A confirmar"}`);
+    y += 4;
 
-    // --- PARTICIPANTES (dividido em grupos) ---
-    y += 10;
+    // --- PARTICIPANTES ---
     addTituloSecao("PARTICIPANTES");
-
-    // Separar os participantes por categoria
     const todosEquipe = ev.equipe || [];
     const equipeEventualSalva = ev.equipeEventual || [];
-    
-    // Filtrar membros da CGID
     const cgidPresentes = equipeCGID.filter(nome => todosEquipe.includes(nome));
-    // Filtrar membros do MCOM (string exata)
     const mcomPresentes = equipeMCOM.filter(nome => todosEquipe.includes(nome));
-    // Filtrar eventuais salvos (que podem estar em equipeEventual ou misturados nos "outros")
     const eventuaisPresentes = equipeEventualSalva.length > 0 ? equipeEventualSalva : equipeEventualNomes.filter(n => todosEquipe.includes(n));
-    // Outros participantes (não listados nas listas fixas e nem eventuais)
-    const outros = todosEquipe.filter(n => 
-        !equipeCGID.includes(n) && !equipeMCOM.includes(n) && !equipeEventualNomes.includes(n)
-    );
+    const outros = todosEquipe.filter(n => !equipeCGID.includes(n) && !equipeMCOM.includes(n) && !equipeEventualNomes.includes(n));
 
-    doc.setFont("helvetica", "normal");
     if (cgidPresentes.length) {
-        doc.setFont("helvetica", "bold");
-        doc.text("CGID:", 40, y); y += 5;
-        doc.setFont("helvetica", "normal");
-        cgidPresentes.forEach(nome => {
-            doc.text(`• ${nome}`, 45, y); y += 5;
-        });
-        y += 3;
+        addTextoLinha(`CGID:`, 45);
+        cgidPresentes.forEach(nome => addTextoLinha(`• ${nome}`, 50));
+        y += 2;
     }
     if (mcomPresentes.length) {
-        doc.setFont("helvetica", "bold");
-        doc.text("MCOM / Gabinete:", 40, y); y += 5;
-        doc.setFont("helvetica", "normal");
-        mcomPresentes.forEach(nome => {
-            doc.text(`• ${nome}`, 45, y); y += 5;
-        });
-        y += 3;
+        addTextoLinha(`MCOM / Gabinete:`, 45);
+        mcomPresentes.forEach(nome => addTextoLinha(`• ${nome}`, 50));
+        y += 2;
     }
     if (eventuaisPresentes.length) {
-        doc.setFont("helvetica", "bold");
-        doc.text("Equipe Eventual:", 40, y); y += 5;
-        doc.setFont("helvetica", "normal");
-        eventuaisPresentes.forEach(nome => {
-            doc.text(`• ${nome}`, 45, y); y += 5;
-        });
-        y += 3;
+        addTextoLinha(`Equipe Eventual:`, 45);
+        eventuaisPresentes.forEach(nome => addTextoLinha(`• ${nome}`, 50));
+        y += 2;
     }
     if (outros.length) {
-        doc.setFont("helvetica", "bold");
-        doc.text("Outros Participantes:", 40, y); y += 5;
-        doc.setFont("helvetica", "normal");
-        outros.forEach(nome => {
-            doc.text(`• ${nome}`, 45, y); y += 5;
-        });
-        y += 3;
+        addTextoLinha(`Outros Participantes:`, 45);
+        outros.forEach(nome => addTextoLinha(`• ${nome}`, 50));
+        y += 2;
     }
     if (cgidPresentes.length === 0 && mcomPresentes.length === 0 && eventuaisPresentes.length === 0 && outros.length === 0) {
-        doc.text("• Comitiva em fase de definição", 40, y); y += 8;
+        addTextoLinha(`• Comitiva em fase de definição`, 40);
     }
+    y += 6;
 
-    // --- INFORMAÇÕES PRINCIPAIS (com nome completo do programa) ---
-    y += 8;
+    // --- INFORMAÇÕES PRINCIPAIS ---
     addTituloSecao("INFORMAÇÕES PRINCIPAIS");
-    doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
-    doc.setFont("helvetica", "normal");
-    
-    let fraseDinamica = "";
     const tipo = ev.tipo || "doacao";
-    const qtdComputadores = ev.qtdComp || (ev.tipo === 'doacao' ? crcData.metaDoacaoTotal : 0);
-    const qtdFormacao = ev.qtdAlunos || crcData.metaFormacaoTotal;
+    const qtdComputadores = ev.qtdComp || (tipo === 'doacao' ? crc.metaDoacao : 0);
+    const qtdFormacao = ev.qtdAlunos || crc.metaFormacao;
+    let fraseDinamica = "";
 
     if (tipo === "caravana" || tipo === "governo" || tipo === "carreta") {
         const nomes = { 'caravana': 'Caravana Federativa', 'governo': 'Governo na Rua', 'carreta': 'Carreta Digital' };
         fraseDinamica = `A ${nomes[tipo]} ocorrerá no estado de ${ev.uf} (${cidadeFinal}) no âmbito da doação de ${qtdComputadores} computadores e formação de ${qtdFormacao} alunos.`;
-    } 
-    else if (tipo === "inauguracao") {
-        fraseDinamica = `Será realizada a inauguração do CRC ${crcData.primeiro.nome}, localizado em ${cidadeFinal}/${ev.uf}, fortalecendo a rede de inclusão digital do Programa Computadores para Inclusão.`;
-    }
-    else if (tipo === "formacao") {
+    } else if (tipo === "inauguracao") {
+        fraseDinamica = `Será realizada a inauguração do CRC ${crc.nome}, localizado em ${cidadeFinal}/${ev.uf}, fortalecendo a rede de inclusão digital do Programa Computadores para Inclusão.`;
+    } else if (tipo === "formacao") {
         fraseDinamica = `Será realizada a cerimônia de entrega de certificados para a formação de ${qtdFormacao} alunos através do Programa Computadores para Inclusão em ${cidadeFinal}/${ev.uf}.`;
-    }
-    else {
+    } else {
         fraseDinamica = `Será realizada a doação de ${qtdComputadores} computadores recondicionados através do Programa Computadores para Inclusão em ${cidadeFinal}/${ev.uf}.`;
     }
+    if (ev.detalhamento && ev.detalhamento.trim() !== "") fraseDinamica += ` ${ev.detalhamento}`;
+    addTextoLinha(`• ${fraseDinamica}`);
+    y += 8;
 
-    if (ev.detalhamento && ev.detalhamento.trim() !== "") {
-        fraseDinamica += ` ${ev.detalhamento}`;
-    }
-    
-    const splitInfo = doc.splitTextToSize(`• ${fraseDinamica}`, 140);
-    doc.text(splitInfo, 40, y);
-    y += (splitInfo.length * 6) + 10;
-
-    // --- DETALHES ADICIONAIS (Indicação, FIPE, Artes, Mídias, Planilha) ---
+    // --- DETALHES ADICIONAIS ---
     addTituloSecao("DETALHES ADICIONAIS");
-    doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
-    doc.setFont("helvetica", "normal");
-    let detalhesY = y;
-    if (ev.indicacao && ev.indicacao !== "N/A") {
-        doc.text(`• Indicação: ${ev.indicacao}`, 40, detalhesY); detalhesY += 6;
-    }
-    if (ev.fipe && ev.fipe.length) {
-        doc.text(`• Estrutura FIPE: ${ev.fipe.join(', ')}`, 40, detalhesY); detalhesY += 6;
-    }
-    if (ev.artes && ev.artes.itens && ev.artes.itens.length) {
-        doc.text(`• Pack de Artes: ${ev.artes.itens.join(', ')}`, 40, detalhesY); detalhesY += 6;
-    }
+    let temDetalhes = false;
+    if (ev.indicacao && ev.indicacao !== "N/A") { addTextoLinha(`• Indicação: ${ev.indicacao}`); temDetalhes = true; }
+    if (ev.fipe && ev.fipe.length) { addTextoLinha(`• Estrutura FIPE: ${ev.fipe.join(', ')}`); temDetalhes = true; }
+    if (ev.artes && ev.artes.itens && ev.artes.itens.length) { addTextoLinha(`• Pack de Artes: ${ev.artes.itens.join(', ')}`); temDetalhes = true; }
     const qtdMidias = (ev.galeria && ev.galeria.length) ? ev.galeria.length : 0;
-    doc.text(`• Mídias capturadas: ${qtdMidias} foto(s)/vídeo(s)`, 40, detalhesY); detalhesY += 6;
-    if (tipo === "doacao" && ev.planilhaUrl) {
-        doc.text(`• Planilha de doação: anexada`, 40, detalhesY); detalhesY += 6;
-    }
-    if (detalhesY === y) {
-        doc.text("• Nenhum detalhe adicional cadastrado", 40, y); detalhesY += 6;
-    }
-    y = detalhesY + 4;
+    addTextoLinha(`• Mídias capturadas: ${qtdMidias} foto(s)/vídeo(s)`); temDetalhes = true;
+    if (tipo === "doacao" && ev.planilhaUrl) { addTextoLinha(`• Planilha de doação: anexada`); temDetalhes = true; }
+    if (!temDetalhes) addTextoLinha(`• Nenhum detalhe adicional cadastrado`);
+    y += 6;
 
     // --- CHECKLIST DO EVENTO ---
     addTituloSecao("CHECKLIST DO EVENTO");
-    doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
-    doc.setFont("helvetica", "normal");
     const checklistItens = ev.checklistNovo || [];
-    if (checklistItens.length) {
-        checklistItens.forEach(item => {
-            doc.text(`• ${item}`, 40, y); y += 5;
-        });
-    } else {
-        doc.text("• Nenhum item registrado no checklist", 40, y); y += 6;
-    }
+    if (checklistItens.length) checklistItens.forEach(item => addTextoLinha(`• ${item}`));
+    else addTextoLinha(`• Nenhum item registrado no checklist`);
     y += 6;
 
-    // --- HISTÓRICO DO PARCEIRO (com convênio) ---
+    // --- HISTÓRICO DO PARCEIRO ---
     addTituloSecao("HISTÓRICO DO PARCEIRO (CRC)");
-    doc.setTextColor(pretoTexto[0], pretoTexto[1], pretoTexto[2]);
-    const crcUnico = crcData.primeiro;
-    const convenioTexto = crcData.convenioSelecionado || "não informado";
-    const textoHistorico = `O Centro de Recondicionamento de Computadores ${crcUnico.nome} integra o Programa Computadores para Inclusão (Convênio SICONV: ${convenioTexto}). Com investimento total de ${crcUnico.investimento}, as metas incluem a doação de ${crcUnico.metaDoacao} computadores e ${crcUnico.metaFormacao} certificados de formação.`;
-    doc.setFont("helvetica", "normal");
-    const splitHist = doc.splitTextToSize(`• ${textoHistorico}`, 140);
-    doc.text(splitHist, 40, y);
-    y += (splitHist.length * 6) + 5;
+    const textoHistorico = `O Centro de Recondicionamento de Computadores ${crc.nome} integra o Programa Computadores para Inclusão (Convênio SICONV: ${crc.convenio}). Com investimento total de ${crc.investimento}, as metas incluem a doação de ${crc.metaDoacao} computadores e ${crc.metaFormacao} certificados de formação.`;
+    addTextoLinha(`• ${textoHistorico}`);
+    y += 8;
 
-    // --- NOTAS ADICIONAIS (se houver) ---
+    // --- NOTAS ADICIONAIS ---
     if (notas) {
         addTituloSecao("OBSERVAÇÕES FINAIS");
-        doc.setFont("helvetica", "normal");
-        const splitNotas = doc.splitTextToSize(`• ${notas}`, 140);
-        doc.text(splitNotas, 40, y);
-        y += (splitNotas.length * 6) + 5;
+        addTextoLinha(`• ${notas}`);
+        y += 6;
     }
 
-    // --- RODAPÉ ---
+    // --- RODAPÉ (apenas na última página) ---
     doc.setDrawColor(verdeVivo[0], verdeVivo[1], verdeVivo[2]);
     doc.setLineWidth(0.5);
-    doc.line(20, 280, 190, 280);
+    doc.line(20, 287, 190, 287);
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
-    doc.text("gov.br/mcom", 25, 287);
-    doc.text("MINISTÉRIO DAS COMUNICAÇÕES", 145, 287);
+    doc.text("gov.br/mcom", 25, 293);
+    doc.text("MINISTÉRIO DAS COMUNICAÇÕES", 145, 293);
 
     doc.save(`Relatório_${ev.uf}_${cidadeFinal.replace(/ /g, '_')}.pdf`);
 }
