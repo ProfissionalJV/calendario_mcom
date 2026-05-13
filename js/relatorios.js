@@ -1,4 +1,4 @@
-// --- FUNÇÃO PARA OBTER DADOS DO CRC/CONVÊNIO CORRETO ---
+// --- FUNÇÃO PARA OBTER DADOS DO CRC/CONVÊNIO CORRETO (com nome completo) ---
 function obterDadosCRC(evento) {
     // Tenta obter o convênio a partir do rawCRCs (lista original)
     if (evento.convenioSelecionado && window.rawCRCs) {
@@ -6,6 +6,7 @@ function obterDadosCRC(evento) {
         if (convenioEncontrado) {
             return {
                 nome: convenioEncontrado.nome,
+                nomeCompleto: convenioEncontrado.nomeCompleto || convenioEncontrado.nome,
                 uf: convenioEncontrado.uf,
                 cidade: convenioEncontrado.cidade,
                 investimento: convenioEncontrado.investimento,
@@ -15,11 +16,13 @@ function obterDadosCRC(evento) {
             };
         }
     }
+    
     // Fallback: tenta pelo crcId (se existir listaBaseCRCs)
     if (evento.crcId !== undefined && evento.crcId !== null && window.listaBaseCRCs && window.listaBaseCRCs[evento.crcId]) {
         const crc = window.listaBaseCRCs[evento.crcId];
         return {
             nome: crc.nome,
+            nomeCompleto: crc.nomeCompleto || crc.nome,
             uf: crc.uf,
             cidade: crc.cidade,
             investimento: crc.investimento,
@@ -28,9 +31,11 @@ function obterDadosCRC(evento) {
             convenio: evento.convenioSelecionado || "não informado"
         };
     }
-    // Fallback final
+    
+    // Fallback final: usa os dados do próprio evento
     return {
         nome: evento.crcVinculado || "CRC não identificado",
+        nomeCompleto: evento.crcVinculado || "CRC não identificado",
         uf: evento.uf,
         cidade: evento.municipio || "Brasil",
         investimento: "Consulte o MCom",
@@ -256,7 +261,7 @@ function gerarPdfRelatorio() {
 
     // --- HISTÓRICO DO PARCEIRO ---
     addTituloSecao("HISTÓRICO DO PARCEIRO (CRC)");
-    const textoHistorico = `O Centro de Recondicionamento de Computadores ${crc.nome} integra o Programa Computadores para Inclusão (Convênio SICONV: ${crc.convenio}). Com investimento total de ${crc.investimento}, as metas incluem a doação de ${crc.metaDoacao} computadores e ${crc.metaFormacao} certificados de formação.`;
+    const textoHistorico = `O Centro de Recondicionamento de Computadores ${crc.nomeCompleto} integra o Programa Computadores para Inclusão (Convênio SICONV: ${crc.convenio}). Com investimento total de ${crc.investimento}, as metas incluem a doação de ${crc.metaDoacao} computadores e ${crc.metaFormacao} certificados de formação.`;
     addTextoLinha(`• ${textoHistorico}`);
     y += 8;
 
