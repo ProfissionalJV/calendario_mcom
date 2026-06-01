@@ -19,7 +19,7 @@ Além de facilitar o planejamento das ações da equipe, o sistema contribui par
 
 ### Dashboard Principal
 
-![Dashboard](screenshots/dashboard.png)
+![Dashboard](screenshots/geral.png)
 
 ### Cadastro de Evento
 
