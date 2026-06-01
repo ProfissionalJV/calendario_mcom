@@ -19,19 +19,11 @@ Além de facilitar o planejamento das ações da equipe, o sistema contribui par
 
 ### Dashboard Principal
 
-![Dashboard](docs/dashboard.png)
+![Dashboard](screenshots/dashboard.png)
 
 ### Cadastro de Evento
 
-![Cadastro](docs/cadastro.png)
-
-### Gestão de Participantes
-
-![Participantes](docs/participantes.png)
-
-### Resumo Gerado Automaticamente
-
-![Resumo](docs/resumo.png)
+![Cadastro](screenshots/cadastro.png)
 
 ---
 
